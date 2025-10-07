@@ -12,7 +12,8 @@ exports.corsConfig = {
     production: {
         origins: [
             'https://chambing.pro',
-            'https://www.chambing.pro'
+            'https://www.chambing.pro',
+            'https://chambing-production.up.railway.app'
         ]
     }
 };

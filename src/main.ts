@@ -5,7 +5,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { getCorsOrigins } from './config/cors.config';
 
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
@@ -37,9 +36,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
-  // Iniciar el servidor
-  await app.listen(3000);
+  // ✅ CAMBIO IMPORTANTE: Usar el puerto de Railway
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
   
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  console.log(`🚀 Application is running on port: ${port}`);
 }
 bootstrap();
