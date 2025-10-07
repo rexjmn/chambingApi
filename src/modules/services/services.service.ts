@@ -160,7 +160,7 @@ async getTarifasByTrabajador(trabajadorId: string): Promise<TarifaTrabajador | n
     relations: ['trabajador']
   });
 
-  return tarifa; // Ahora puede retornar null sin error
+  return tarifa; 
 }
 
 async deleteTarifaTrabajador(trabajadorId: string): Promise<void> {

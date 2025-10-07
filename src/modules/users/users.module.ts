@@ -12,7 +12,7 @@ import { AwsModule } from '../aws/aws.module';
   imports: [
     TypeOrmModule.forFeature([
       User,
-      TarifaTrabajador  // ⬅️ AGREGAR
+      TarifaTrabajador  
     ]),
     AwsModule
   ],

@@ -16,7 +16,10 @@ const dataSourceOptions = {
     migrations: [path.join(__dirname, './migrations/*{.ts,.js}')],
     migrationsTableName: 'migrations',
     synchronize: false,
-    logging: true
+    logging: true,
+    ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false
+    } : false,
 };
 exports.AppDataSource = new typeorm_1.DataSource(dataSourceOptions);
 //# sourceMappingURL=data-source.js.map
