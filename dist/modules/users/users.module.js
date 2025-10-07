@@ -9,9 +9,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const user_entity_1 = require("./entities/user.entity");
 const users_service_1 = require("./users.service");
 const users_controller_1 = require("./users.controller");
+const user_entity_1 = require("./entities/user.entity");
+const tarifa_trabajador_entity_1 = require("../services/entities/tarifa-trabajador.entity");
 const aws_module_1 = require("../aws/aws.module");
 let UsersModule = class UsersModule {
 };
@@ -19,12 +20,15 @@ exports.UsersModule = UsersModule;
 exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([user_entity_1.User]),
-            (0, common_1.forwardRef)(() => aws_module_1.AwsModule)
+            typeorm_1.TypeOrmModule.forFeature([
+                user_entity_1.User,
+                tarifa_trabajador_entity_1.TarifaTrabajador
+            ]),
+            aws_module_1.AwsModule
         ],
-        providers: [users_service_1.UsersService],
         controllers: [users_controller_1.UsersController],
-        exports: [users_service_1.UsersService],
+        providers: [users_service_1.UsersService],
+        exports: [users_service_1.UsersService]
     })
 ], UsersModule);
 //# sourceMappingURL=users.module.js.map

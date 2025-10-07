@@ -1,15 +1,35 @@
 import { RolAdministrativo } from '../../roles/entities/rol-administrativo.entity';
+import { Skill } from '../../skills/entities/skill.entity';
+import { TarifaTrabajador } from '../../services/entities/tarifa-trabajador.entity';
 export declare class User {
     id: string;
-    tipo_usuario: string;
     email: string;
     password: string;
     nombre: string;
     apellido: string;
     telefono: string;
+    departamento: string;
+    municipio: string;
+    direccion: string;
+    titulo_profesional: string;
+    biografia: string;
     dui: string;
     activo: boolean;
-    foto_perfil: string;
-    tipo_foto_perfil: string;
+    foto_perfil: string | null;
+    tipo_foto_perfil: string | null;
+    foto_portada: string | null;
+    tipo_foto_portada: string | null;
+    tipo_usuario: string;
+    verificado: boolean;
+    fecha_registro: Date;
     rolesAdministrativos: RolAdministrativo[];
+    tarifas: TarifaTrabajador[];
+    habilidades: Skill[];
+    isWorker(): boolean;
+    isClient(): boolean;
+    isVerifiedWorker(): boolean;
+    getAdminRoles(): string[];
+    isAdmin(): boolean;
+    isSuperAdmin(): boolean;
+    hasAdminRole(roleName: string): boolean;
 }

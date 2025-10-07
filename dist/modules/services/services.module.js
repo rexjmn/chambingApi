@@ -9,15 +9,30 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ServicesModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
+const services_service_1 = require("./services.service");
+const services_controller_1 = require("./services.controller");
 const categoria_servicio_entity_1 = require("./entities/categoria-servicio.entity");
 const tarifa_categoria_entity_1 = require("./entities/tarifa-categoria.entity");
+const trabajador_categoria_entity_1 = require("./entities/trabajador-categoria.entity");
+const tarifa_trabajador_entity_1 = require("./entities/tarifa-trabajador.entity");
+const user_entity_1 = require("../users/entities/user.entity");
 let ServicesModule = class ServicesModule {
 };
 exports.ServicesModule = ServicesModule;
 exports.ServicesModule = ServicesModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([categoria_servicio_entity_1.CategoriaServicio, tarifa_categoria_entity_1.TarifaCategoria])],
-        exports: [typeorm_1.TypeOrmModule]
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([
+                categoria_servicio_entity_1.CategoriaServicio,
+                tarifa_categoria_entity_1.TarifaCategoria,
+                trabajador_categoria_entity_1.TrabajadorCategoria,
+                tarifa_trabajador_entity_1.TarifaTrabajador,
+                user_entity_1.User,
+            ]),
+        ],
+        controllers: [services_controller_1.ServicesController],
+        providers: [services_service_1.ServicesService],
+        exports: [services_service_1.ServicesService],
     })
 ], ServicesModule);
 //# sourceMappingURL=services.module.js.map

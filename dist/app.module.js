@@ -19,6 +19,9 @@ const contracts_module_1 = require("./modules/contracts/contracts.module");
 const documents_module_1 = require("./modules/documents/documents.module");
 const app_controller_1 = require("./app.controller");
 const aws_module_1 = require("./modules/aws/aws.module");
+const payments_module_1 = require("./modules/payments/payments.module");
+const admin_module_1 = require("./modules/admin/admin.module");
+const skills_module_1 = require("./modules/skills/skills.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -45,7 +48,10 @@ exports.AppModule = AppModule = __decorate([
             services_module_1.ServicesModule,
             contracts_module_1.ContractsModule,
             documents_module_1.DocumentsModule,
+            skills_module_1.SkillsModule,
             aws_module_1.AwsModule,
+            admin_module_1.AdminModule,
+            payments_module_1.PaymentsModule,
         ],
         controllers: [app_controller_1.AppController],
     })

@@ -4,9 +4,12 @@ export declare class CreateUserDto {
     nombre: string;
     apellido: string;
     telefono?: string;
+    departamento?: string;
+    municipio?: string;
+    direccion?: string;
+    biografia?: string;
     dui?: string;
-    direccion?: any;
-    tipo_usuario?: string;
     foto_perfil?: string;
-    tipo_foto_perfil?: string;
+    tipo_usuario?: 'cliente' | 'trabajador';
+    verificado?: boolean;
 }

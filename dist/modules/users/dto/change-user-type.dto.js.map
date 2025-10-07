@@ -1,0 +1,1 @@
+{"version":3,"file":"change-user-type.dto.js","sourceRoot":"","sources":["../../../../src/modules/users/dto/change-user-type.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAqD;AAErD,MAAa,iBAAiB;CAM7B;AAND,8CAMC;AADC;IAJC,IAAA,4BAAU,EAAC,EAAE,OAAO,EAAE,mCAAmC,EAAE,CAAC;IAC5D,IAAA,wBAAM,EAAC,CAAC,SAAS,EAAE,YAAY,CAAC,EAAE;QACjC,OAAO,EAAE,gDAAgD;KAC1D,CAAC;;uDACqC"}

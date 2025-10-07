@@ -19,11 +19,15 @@ const typeorm_2 = require("typeorm");
 const categoria_servicio_entity_1 = require("./entities/categoria-servicio.entity");
 const tarifa_categoria_entity_1 = require("./entities/tarifa-categoria.entity");
 const trabajador_categoria_entity_1 = require("./entities/trabajador-categoria.entity");
+const user_entity_1 = require("../users/entities/user.entity");
+const tarifa_trabajador_entity_1 = require("./entities/tarifa-trabajador.entity");
 let ServicesService = class ServicesService {
-    constructor(categoriasRepository, tarifasRepository, trabajadorCategoriaRepository) {
+    constructor(categoriasRepository, tarifasRepository, trabajadorCategoriaRepository, tarifasTrabajadorRepository, usersRepository) {
         this.categoriasRepository = categoriasRepository;
         this.tarifasRepository = tarifasRepository;
         this.trabajadorCategoriaRepository = trabajadorCategoriaRepository;
+        this.tarifasTrabajadorRepository = tarifasTrabajadorRepository;
+        this.usersRepository = usersRepository;
     }
     async createCategoria(createCategoriaDto) {
         const existingCategoria = await this.categoriasRepository.findOne({
@@ -88,6 +92,54 @@ let ServicesService = class ServicesService {
         Object.assign(categoria, updateCategoriaDto);
         return await this.categoriasRepository.save(categoria);
     }
+    async deleteCategoria(id) {
+        const categoria = await this.findCategoriaById(id);
+        await this.categoriasRepository.remove(categoria);
+    }
+    async createTarifaTrabajador(dto) {
+        const trabajador = await this.usersRepository.findOne({
+            where: { id: dto.trabajadorId, tipo_usuario: 'trabajador' }
+        });
+        if (!trabajador) {
+            throw new common_1.NotFoundException('Trabajador no encontrado');
+        }
+        const existingTarifa = await this.tarifasTrabajadorRepository.findOne({
+            where: { trabajador: { id: dto.trabajadorId }, activo: true }
+        });
+        if (existingTarifa) {
+            throw new common_1.ConflictException('El trabajador ya tiene tarifas activas. Usa el endpoint de actualización.');
+        }
+        const tarifa = this.tarifasTrabajadorRepository.create({
+            ...dto,
+            trabajador
+        });
+        return await this.tarifasTrabajadorRepository.save(tarifa);
+    }
+    async updateTarifaTrabajador(trabajadorId, dto) {
+        const tarifa = await this.tarifasTrabajadorRepository.findOne({
+            where: { trabajador: { id: trabajadorId }, activo: true }
+        });
+        if (!tarifa) {
+            throw new common_1.NotFoundException('Tarifas no encontradas para este trabajador');
+        }
+        Object.assign(tarifa, dto);
+        return await this.tarifasTrabajadorRepository.save(tarifa);
+    }
+    async getTarifasByTrabajador(trabajadorId) {
+        const tarifa = await this.tarifasTrabajadorRepository.findOne({
+            where: { trabajador: { id: trabajadorId }, activo: true },
+            relations: ['trabajador']
+        });
+        return tarifa;
+    }
+    async deleteTarifaTrabajador(trabajadorId) {
+        const tarifa = await this.getTarifasByTrabajador(trabajadorId);
+        if (!tarifa) {
+            throw new common_1.NotFoundException('Tarifas no encontradas');
+        }
+        tarifa.activo = false;
+        await this.tarifasTrabajadorRepository.save(tarifa);
+    }
 };
 exports.ServicesService = ServicesService;
 exports.ServicesService = ServicesService = __decorate([
@@ -95,7 +147,11 @@ exports.ServicesService = ServicesService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(categoria_servicio_entity_1.CategoriaServicio)),
     __param(1, (0, typeorm_1.InjectRepository)(tarifa_categoria_entity_1.TarifaCategoria)),
     __param(2, (0, typeorm_1.InjectRepository)(trabajador_categoria_entity_1.TrabajadorCategoria)),
+    __param(3, (0, typeorm_1.InjectRepository)(tarifa_trabajador_entity_1.TarifaTrabajador)),
+    __param(4, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])
 ], ServicesService);

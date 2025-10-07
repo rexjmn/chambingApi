@@ -11,6 +11,34 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateContratoDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+class DetallesServicioDto {
+}
+__decorate([
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], DetallesServicioDto.prototype, "descripcion", void 0);
+__decorate([
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], DetallesServicioDto.prototype, "direccion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsObject)(),
+    __metadata("design:type", Object)
+], DetallesServicioDto.prototype, "coordenadas", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], DetallesServicioDto.prototype, "duracion_estimada_horas", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], DetallesServicioDto.prototype, "notas_adicionales", void 0);
 class CreateContratoDto {
 }
 exports.CreateContratoDto = CreateContratoDto;
@@ -41,8 +69,9 @@ __decorate([
 ], CreateContratoDto.prototype, "fechaFin", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsObject)(),
-    __metadata("design:type", Object)
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => DetallesServicioDto),
+    __metadata("design:type", DetallesServicioDto)
 ], CreateContratoDto.prototype, "detallesServicio", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
@@ -52,6 +81,12 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateContratoDto.prototype, "monto", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['efectivo', 'tarjeta']),
+    __metadata("design:type", String)
+], CreateContratoDto.prototype, "metodoPago", void 0);
 //# sourceMappingURL=create-contrato.dto.js.map

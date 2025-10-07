@@ -1,4 +1,41 @@
-import { IsNotEmpty, IsUUID, IsDateString, IsNumber, IsString, IsObject, IsOptional } from 'class-validator';
+import { 
+  IsNotEmpty, 
+  IsUUID, 
+  IsDateString, 
+  IsNumber, 
+  IsString, 
+  IsObject, 
+  IsOptional,
+  IsIn,
+  Min,
+  ValidateNested
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
+class DetallesServicioDto {
+  @IsNotEmpty()
+  @IsString()
+  descripcion: string;
+
+  @IsNotEmpty()
+  @IsString()
+  direccion: string;
+
+  @IsOptional()
+  @IsObject()
+  coordenadas?: {
+    lat: number;
+    lng: number;
+  };
+
+  @IsOptional()
+  @IsNumber()
+  duracion_estimada_horas?: number;
+
+  @IsOptional()
+  @IsString()
+  notas_adicionales?: string;
+}
 
 export class CreateContratoDto {
   @IsNotEmpty()
@@ -22,8 +59,9 @@ export class CreateContratoDto {
   fechaFin?: Date;
 
   @IsNotEmpty()
-  @IsObject()
-  detallesServicio: object;
+  @ValidateNested()
+  @Type(() => DetallesServicioDto)
+  detallesServicio: DetallesServicioDto;
 
   @IsNotEmpty()
   @IsString()
@@ -31,5 +69,10 @@ export class CreateContratoDto {
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
   monto: number;
+
+  @IsOptional()
+  @IsIn(['efectivo', 'tarjeta'])
+  metodoPago?: string;
 }

@@ -12,7 +12,7 @@ export declare class AwsService {
     deleteFile(fileKey: string): Promise<void>;
     private isValidFileType;
     private getDefaultExtension;
-    uploadFile(file: Express.Multer.File): Promise<{
+    uploadFile(file: Express.Multer.File, folder?: string): Promise<{
         fileUrl: string;
     }>;
 }

@@ -1,11 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+// src/modules/contracts/contracts.service.ts
+import { 
+  Injectable, 
+  NotFoundException, 
+  BadRequestException,
+  UnauthorizedException 
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Contrato } from './entities/contrato.entity';
 import { EstadoContrato } from './entities/estado-contrato.entity';
 import { CreateContratoDto } from './dto/create-contrato.dto';
-import { UpdateContratoDto } from './dto/update-contrato.dto';
-import { v4 as uuidv4 } from 'uuid';
+import { ActivarContratoDto } from './dto/activar-contrato.dto';
 import * as QRCode from 'qrcode';
 
 @Injectable()
@@ -17,50 +22,315 @@ export class ContractsService {
     private estadosRepository: Repository<EstadoContrato>
   ) {}
 
-  // Método para generar un código de contrato único
+  // ========== MÉTODOS PRIVADOS DE GENERACIÓN ==========
+
   private generateContractCode(): string {
-    // Generamos un código con formato: CON-YYYY-XXXXX
     const year = new Date().getFullYear();
     const randomPart = Math.floor(10000 + Math.random() * 90000);
     return `CON-${year}-${randomPart}`;
   }
 
-  // Método para generar el código QR del contrato
-  private async generateQRCode(contractCode: string): Promise<string> {
-    // El QR contendrá una URL a la verificación del contrato
-    const verificationUrl = `https://tudominio.com/verify-contract/${contractCode}`;
-    return await QRCode.toDataURL(verificationUrl);
+  private generatePIN(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  async create(createContratoDto: CreateContratoDto): Promise<Contrato> {
-    // Generamos el código único del contrato
-    const codigoContrato = this.generateContractCode();
-    
-    // Generamos el código QR
-    const codigoQrUrl = await this.generateQRCode(codigoContrato);
+  private async generateQRCode(contratoData: {
+    codigo: string;
+    pin: string;
+    contratoId: string;
+  }): Promise<string> {
+    const payload = {
+      codigo_contrato: contratoData.codigo,
+      pin: contratoData.pin,
+      id: contratoData.contratoId,
+      timestamp: Date.now()
+    };
 
-    // Creamos el contrato con sus estados iniciales
+    const dataString = JSON.stringify(payload);
+    const qrData = Buffer.from(dataString).toString('base64');
+
+    return await QRCode.toDataURL(qrData, {
+      errorCorrectionLevel: 'H',
+      width: 300,
+      margin: 2
+    });
+  }
+
+  private calcularMontoTrabajador(
+    montoTotal: number, 
+    comisionPorcentaje: number = 10
+  ): number {
+    const comision = montoTotal * (comisionPorcentaje / 100);
+    return montoTotal - comision;
+  }
+
+  // ========== CREAR CONTRATO ==========
+
+  async create(createContratoDto: CreateContratoDto): Promise<Contrato> {
+    if (createContratoDto.empleadorId === createContratoDto.trabajadorId) {
+      throw new BadRequestException(
+        'El empleador y el trabajador no pueden ser la misma persona'
+      );
+    }
+
+    const codigoContrato = this.generateContractCode();
+    const pinActivacion = this.generatePIN();
+    const montoTrabajador = this.calcularMontoTrabajador(createContratoDto.monto);
+
     const contrato = this.contratosRepository.create({
-      ...createContratoDto,
       codigo_contrato: codigoContrato,
-      codigo_qr_url: codigoQrUrl,
-      estado: 'pendiente'
+      pin_activacion: pinActivacion,
+      empleador: { id: createContratoDto.empleadorId } as any,
+      trabajador: { id: createContratoDto.trabajadorId } as any,
+      categoria: { id: createContratoDto.categoriaId } as any,
+      fecha_inicio_programada: createContratoDto.fechaInicio,
+      fecha_fin_programada: createContratoDto.fechaFin,
+      detalles_servicio: createContratoDto.detallesServicio,
+      terminos_condiciones: createContratoDto.terminosCondiciones,
+      monto_total: createContratoDto.monto,
+      monto_trabajador: montoTrabajador,
+      metodo_pago: createContratoDto.metodoPago || 'efectivo',
+      estado: 'pendiente_activacion',
+      estado_pago: 'pendiente'
     });
 
-    // Guardamos el contrato
     const contratoGuardado = await this.contratosRepository.save(contrato);
 
-    // Registramos el estado inicial
+    const qrCodeUrl = await this.generateQRCode({
+      codigo: codigoContrato,
+      pin: pinActivacion,
+      contratoId: contratoGuardado.id
+    });
+
+    contratoGuardado.codigo_qr_url = qrCodeUrl;
+    await this.contratosRepository.save(contratoGuardado);
+
     await this.registrarEstadoContrato({
       contratoId: contratoGuardado.id,
       estadoAnterior: null,
-      estadoNuevo: 'pendiente',
+      estadoNuevo: 'pendiente_activacion',
       usuarioId: createContratoDto.empleadorId,
-      notas: 'Contrato creado'
+      notas: 'Contrato creado y pendiente de activación'
     });
 
     return contratoGuardado;
   }
+
+  // ========== ACTIVAR CONTRATO ==========
+
+  async activarContrato(
+    activarDto: ActivarContratoDto,
+    usuarioId: string,
+    ip?: string
+  ): Promise<Contrato> {
+    let contrato: Contrato | null = null;
+
+    // Buscar contrato según el método de activación
+    if (activarDto.metodoActivacion === 'pin') {
+      if (!activarDto.codigoContrato || !activarDto.pin) {
+        throw new BadRequestException('Código de contrato y PIN son requeridos');
+      }
+      
+      contrato = await this.contratosRepository.findOne({
+        where: { 
+          codigo_contrato: activarDto.codigoContrato,
+          pin_activacion: activarDto.pin 
+        },
+        relations: ['empleador', 'trabajador', 'categoria']
+      });
+    } else if (activarDto.metodoActivacion === 'qr') {
+      if (!activarDto.qrData) {
+        throw new BadRequestException('Datos del QR son requeridos');
+      }
+      
+      try {
+        const qrData = JSON.parse(
+          Buffer.from(activarDto.qrData, 'base64').toString('utf-8')
+        );
+        
+        contrato = await this.contratosRepository.findOne({
+          where: { 
+            id: qrData.id,
+            codigo_contrato: qrData.codigo_contrato,
+            pin_activacion: qrData.pin
+          },
+          relations: ['empleador', 'trabajador', 'categoria']
+        });
+      } catch (error) {
+        throw new BadRequestException('Código QR inválido o corrupto');
+      }
+    }
+
+    if (!contrato) {
+      throw new NotFoundException('Contrato no encontrado o PIN/QR incorrecto');
+    }
+
+    if (!contrato.puedeSerActivado()) {
+      throw new BadRequestException(
+        `El contrato no puede ser activado. Estado actual: ${contrato.estado}`
+      );
+    }
+
+    const esEmpleador = contrato.empleador.id === usuarioId;
+    const esTrabajador = contrato.trabajador.id === usuarioId;
+
+    if (!esEmpleador && !esTrabajador) {
+      throw new UnauthorizedException(
+        'No tienes permiso para activar este contrato'
+      );
+    }
+
+    const estadoAnterior = contrato.estado;
+    contrato.estado = 'activo';
+    contrato.fecha_activacion = new Date();
+    contrato.activado_por = esEmpleador ? 'empleador' : 'trabajador';
+    contrato.metodo_activacion = activarDto.metodoActivacion;
+    contrato.ip_activacion = ip || null;
+
+    if (contrato.metodo_pago === 'tarjeta') {
+      contrato.estado_pago = 'en_hold';
+    }
+
+    const contratoActivado = await this.contratosRepository.save(contrato);
+
+    await this.registrarEstadoContrato({
+      contratoId: contrato.id,
+      estadoAnterior,
+      estadoNuevo: 'activo',
+      usuarioId,
+      notas: `Contrato activado por ${contrato.activado_por} usando ${contrato.metodo_activacion}`
+    });
+
+    return contratoActivado;
+  }
+
+  // ========== COMPLETAR CONTRATO ==========
+
+  async completarContrato(
+    contratoId: string,
+    usuarioId: string,
+    notas?: string
+  ): Promise<Contrato> {
+    const contrato = await this.findOne(contratoId);
+
+    if (!contrato.puedeSerCompletado()) {
+      throw new BadRequestException(
+        `El contrato no puede ser completado. Estado actual: ${contrato.estado}`
+      );
+    }
+
+    if (contrato.trabajador.id !== usuarioId) {
+      throw new UnauthorizedException(
+        'Solo el trabajador puede marcar el contrato como completado'
+      );
+    }
+
+    const estadoAnterior = contrato.estado;
+    contrato.estado = 'completado';
+    contrato.fecha_completado = new Date();
+
+    const contratoActualizado = await this.contratosRepository.save(contrato);
+
+    await this.registrarEstadoContrato({
+      contratoId,
+      estadoAnterior,
+      estadoNuevo: 'completado',
+      usuarioId,
+      notas: notas || 'Trabajo completado por el trabajador'
+    });
+
+    return contratoActualizado;
+  }
+
+  // ========== CERRAR CONTRATO (LIBERAR PAGO) ==========
+
+  async cerrarContrato(
+    contratoId: string,
+    usuarioId: string,
+    notas?: string
+  ): Promise<Contrato> {
+    const contrato = await this.findOne(contratoId);
+
+    if (contrato.estado !== 'completado') {
+      throw new BadRequestException(
+        'Solo se pueden cerrar contratos completados'
+      );
+    }
+
+    if (contrato.empleador.id !== usuarioId) {
+      throw new UnauthorizedException(
+        'Solo el empleador puede cerrar el contrato'
+      );
+    }
+
+    const estadoAnterior = contrato.estado;
+    contrato.estado = 'cerrado';
+    contrato.fecha_cierre = new Date();
+
+    if (contrato.metodo_pago === 'tarjeta') {
+      contrato.estado_pago = 'liberado';
+    } else {
+      contrato.estado_pago = 'completado';
+    }
+
+    const contratoCerrado = await this.contratosRepository.save(contrato);
+
+    await this.registrarEstadoContrato({
+      contratoId,
+      estadoAnterior,
+      estadoNuevo: 'cerrado',
+      usuarioId,
+      notas: notas || 'Contrato cerrado y pago liberado'
+    });
+
+    return contratoCerrado;
+  }
+
+  // ========== CANCELAR CONTRATO ==========
+
+  async cancelarContrato(
+    contratoId: string,
+    usuarioId: string,
+    motivo: string
+  ): Promise<Contrato> {
+    const contrato = await this.findOne(contratoId);
+
+    if (!contrato.puedeSerCancelado()) {
+      throw new BadRequestException(
+        `El contrato no puede ser cancelado. Estado actual: ${contrato.estado}`
+      );
+    }
+
+    const esEmpleador = contrato.empleador.id === usuarioId;
+    const esTrabajador = contrato.trabajador.id === usuarioId;
+
+    if (!esEmpleador && !esTrabajador) {
+      throw new UnauthorizedException(
+        'No tienes permiso para cancelar este contrato'
+      );
+    }
+
+    const estadoAnterior = contrato.estado;
+    contrato.estado = 'cancelado';
+
+    if (contrato.estado_pago === 'en_hold') {
+      contrato.estado_pago = 'reembolsado';
+    }
+
+    const contratoCancelado = await this.contratosRepository.save(contrato);
+
+    await this.registrarEstadoContrato({
+      contratoId,
+      estadoAnterior,
+      estadoNuevo: 'cancelado',
+      usuarioId,
+      notas: `Cancelado por ${esEmpleador ? 'empleador' : 'trabajador'}. Motivo: ${motivo}`
+    });
+
+    return contratoCancelado;
+  }
+
+  // ========== CONSULTAS ==========
 
   async findAll(filters?: {
     empleadorId?: string;
@@ -74,24 +344,22 @@ export class ContractsService {
       .leftJoinAndSelect('contrato.empleador', 'empleador')
       .leftJoinAndSelect('contrato.trabajador', 'trabajador')
       .leftJoinAndSelect('contrato.categoria', 'categoria')
-      .leftJoinAndSelect('contrato.estados', 'estados')
       .orderBy('contrato.fecha_creacion', 'DESC');
 
-    // Aplicamos los filtros
     if (filters?.empleadorId) {
-      queryBuilder.andWhere('empleador.id = :empleadorId', { empleadorId: filters.empleadorId });
+      queryBuilder.andWhere('empleador.id = :empleadorId', { 
+        empleadorId: filters.empleadorId 
+      });
     }
     if (filters?.trabajadorId) {
-      queryBuilder.andWhere('trabajador.id = :trabajadorId', { trabajadorId: filters.trabajadorId });
+      queryBuilder.andWhere('trabajador.id = :trabajadorId', { 
+        trabajadorId: filters.trabajadorId 
+      });
     }
     if (filters?.estado) {
-      queryBuilder.andWhere('contrato.estado = :estado', { estado: filters.estado });
-    }
-    if (filters?.fechaInicio) {
-      queryBuilder.andWhere('contrato.fecha_inicio >= :fechaInicio', { fechaInicio: filters.fechaInicio });
-    }
-    if (filters?.fechaFin) {
-      queryBuilder.andWhere('contrato.fecha_inicio <= :fechaFin', { fechaFin: filters.fechaFin });
+      queryBuilder.andWhere('contrato.estado = :estado', { 
+        estado: filters.estado 
+      });
     }
 
     return await queryBuilder.getMany();
@@ -110,67 +378,56 @@ export class ContractsService {
     return contrato;
   }
 
-  async updateEstado(
-    id: string,
-    nuevoEstado: string,
-    usuarioId: string,
-    notas?: string
-  ): Promise<Contrato> {
-    const contrato = await this.findOne(id);
-    const estadoAnterior = contrato.estado;
-
-    // Validamos la transición de estado
-    this.validarTransicionEstado(estadoAnterior, nuevoEstado);
-
-    // Actualizamos el estado del contrato
-    contrato.estado = nuevoEstado;
-    const contratoActualizado = await this.contratosRepository.save(contrato);
-
-    // Registramos el cambio de estado
-    await this.registrarEstadoContrato({
-      contratoId: id,
-      estadoAnterior,
-      estadoNuevo: nuevoEstado,
-      usuarioId,
-      notas
+  async findByCodigoContrato(codigo: string): Promise<Contrato> {
+    const contrato = await this.contratosRepository.findOne({
+      where: { codigo_contrato: codigo },
+      relations: ['empleador', 'trabajador', 'categoria']
     });
 
-    return contratoActualizado;
-  }
-
-  private validarTransicionEstado(estadoActual: string, nuevoEstado: string): void {
-    // Definimos las transiciones permitidas
-    const transicionesPermitidas = {
-      'pendiente': ['en_progreso', 'cancelado'],
-      'en_progreso': ['completado', 'cancelado'],
-      'completado': ['cerrado'],
-      'cancelado': [],
-      'cerrado': []
-    };
-
-    if (!transicionesPermitidas[estadoActual]?.includes(nuevoEstado)) {
-      throw new BadRequestException(
-        `No se permite la transición de estado de ${estadoActual} a ${nuevoEstado}`
-      );
+    if (!contrato) {
+      throw new NotFoundException('Contrato no encontrado');
     }
+
+    return contrato;
   }
 
-  private async registrarEstadoContrato(data: {
-    contratoId: string;
-    estadoAnterior: string | null; // Modificamos para aceptar null
-    estadoNuevo: string;
-    usuarioId: string;
-    notas?: string;
-  }): Promise<EstadoContrato> {
-    const estadoContrato = this.estadosRepository.create(data);
-    return await this.estadosRepository.save(estadoContrato);
-  }
+  // ========== HISTORIAL DE ESTADOS ==========
 
   async getHistorialEstados(contratoId: string): Promise<EstadoContrato[]> {
     return await this.estadosRepository.find({
       where: { contrato: { id: contratoId } },
       relations: ['usuario'],
       order: { fecha_cambio: 'DESC' }
+    });
+  }
+
+  private async registrarEstadoContrato(data: {
+    contratoId: string;
+    estadoAnterior: string | null;
+    estadoNuevo: string;
+    usuarioId: string;
+    notas?: string;
+  }): Promise<EstadoContrato> {
+    const estadoContrato = this.estadosRepository.create({
+      contrato: { id: data.contratoId } as any,
+      estado_anterior: data.estadoAnterior,
+      estado_nuevo: data.estadoNuevo,
+      usuario: { id: data.usuarioId } as any,
+      notas: data.notas
+    });
+    
+    return await this.estadosRepository.save(estadoContrato);
+  }
+
+  // ========== ESTADÍSTICAS ==========
+
+  async getContratosCerradosPorTrabajador(trabajadorId: string): Promise<Contrato[]> {
+    return await this.contratosRepository.find({
+      where: {
+        trabajador: { id: trabajadorId },
+        estado: 'cerrado'
+      },
+      relations: ['empleador', 'categoria']
     });
   }
 }

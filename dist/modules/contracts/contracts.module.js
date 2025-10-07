@@ -9,8 +9,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContractsModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
-const contracts_service_1 = require("./contracts.service");
 const contracts_controller_1 = require("./contracts.controller");
+const contracts_service_1 = require("./contracts.service");
 const contrato_entity_1 = require("./entities/contrato.entity");
 const estado_contrato_entity_1 = require("./entities/estado-contrato.entity");
 let ContractsModule = class ContractsModule {
@@ -19,7 +19,10 @@ exports.ContractsModule = ContractsModule;
 exports.ContractsModule = ContractsModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([contrato_entity_1.Contrato, estado_contrato_entity_1.EstadoContrato])
+            typeorm_1.TypeOrmModule.forFeature([
+                contrato_entity_1.Contrato,
+                estado_contrato_entity_1.EstadoContrato
+            ])
         ],
         controllers: [contracts_controller_1.ContractsController],
         providers: [contracts_service_1.ContractsService],

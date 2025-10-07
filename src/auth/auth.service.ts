@@ -1,5 +1,5 @@
-// src/auth/auth.service.ts
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+
+import { Injectable, UnauthorizedException, Logger, NotFoundException } from '@nestjs/common';
 import { UsersService } from '../modules/users/users.service';
 import { TokenService } from './services/token.service';
 import { LoginAttemptService } from './services/login-attempt.service';
@@ -41,9 +41,9 @@ export class AuthService {
     
     // Verificamos el estado de bloqueo
     const blockStatus = await this.loginAttemptService.isBlocked(
-      loginDto.email,
-      clientInfo.ip
-    );
+    loginDto.email,
+    clientInfo.ip
+  );
 
     if (blockStatus.blocked) {
       throw new UnauthorizedException(
@@ -109,8 +109,14 @@ export class AuthService {
       };
 
     } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
+      if (error instanceof NotFoundException) {
+        await this.loginAttemptService.recordAttempt(
+      loginDto.email,
+      clientInfo.ip,
+      clientInfo.userAgent,
+      false
+    );
+      throw new UnauthorizedException('Credenciales inválidas');
       }
       this.logger.error(
         `Error en el proceso de login: ${error.message}`,

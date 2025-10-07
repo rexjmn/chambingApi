@@ -4,9 +4,12 @@ import { Repository } from 'typeorm';
 import { CategoriaServicio } from './entities/categoria-servicio.entity';
 import { TarifaCategoria } from './entities/tarifa-categoria.entity';
 import { TrabajadorCategoria } from './entities/trabajador-categoria.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { CreateTarifaDto } from './dto/create-tarifa.dto';
 import { CreateTrabajadorCategoriaDto } from './dto/create-trabajador-categoria.dto';
+import { TarifaTrabajador } from './entities/tarifa-trabajador.entity';
+import { CreateTarifaTrabajadorDto, UpdateTarifaTrabajadorDto } from './dto/create-tarifa-trabajador.dto';
 
 @Injectable()
 export class ServicesService {
@@ -16,7 +19,11 @@ export class ServicesService {
     @InjectRepository(TarifaCategoria)
     private tarifasRepository: Repository<TarifaCategoria>,
     @InjectRepository(TrabajadorCategoria)
-    private trabajadorCategoriaRepository: Repository<TrabajadorCategoria>
+    private trabajadorCategoriaRepository: Repository<TrabajadorCategoria>,
+    @InjectRepository(TarifaTrabajador) // ⬅️ AGREGAR
+    private tarifasTrabajadorRepository: Repository<TarifaTrabajador>,
+    @InjectRepository(User) // ⬅️ AGREGAR
+    private usersRepository: Repository<User>,
   ) {}
 
   async createCategoria(createCategoriaDto: CreateCategoriaDto): Promise<CategoriaServicio> {
@@ -99,4 +106,73 @@ export class ServicesService {
     Object.assign(categoria, updateCategoriaDto);
     return await this.categoriasRepository.save(categoria);
   }
+  async deleteCategoria(id: string): Promise<void> {
+  const categoria = await this.findCategoriaById(id);
+  await this.categoriasRepository.remove(categoria);
+}
+
+async createTarifaTrabajador(dto: CreateTarifaTrabajadorDto): Promise<TarifaTrabajador> {
+  // Verificar que el trabajador existe y es trabajador
+  const trabajador = await this.usersRepository.findOne({
+    where: { id: dto.trabajadorId, tipo_usuario: 'trabajador' }
+  });
+
+  if (!trabajador) {
+    throw new NotFoundException('Trabajador no encontrado');
+  }
+
+  // Verificar si ya tiene tarifas
+  const existingTarifa = await this.tarifasTrabajadorRepository.findOne({
+    where: { trabajador: { id: dto.trabajadorId }, activo: true }
+  });
+
+  if (existingTarifa) {
+    throw new ConflictException('El trabajador ya tiene tarifas activas. Usa el endpoint de actualización.');
+  }
+
+  const tarifa = this.tarifasTrabajadorRepository.create({
+    ...dto,
+    trabajador
+  });
+
+  return await this.tarifasTrabajadorRepository.save(tarifa);
+}
+
+async updateTarifaTrabajador(
+  trabajadorId: string, 
+  dto: UpdateTarifaTrabajadorDto
+): Promise<TarifaTrabajador> {
+  const tarifa = await this.tarifasTrabajadorRepository.findOne({
+    where: { trabajador: { id: trabajadorId }, activo: true }
+  });
+
+  if (!tarifa) {
+    throw new NotFoundException('Tarifas no encontradas para este trabajador');
+  }
+
+  Object.assign(tarifa, dto);
+  return await this.tarifasTrabajadorRepository.save(tarifa);
+}
+
+async getTarifasByTrabajador(trabajadorId: string): Promise<TarifaTrabajador | null> {
+  const tarifa = await this.tarifasTrabajadorRepository.findOne({
+    where: { trabajador: { id: trabajadorId }, activo: true },
+    relations: ['trabajador']
+  });
+
+  return tarifa; // Ahora puede retornar null sin error
+}
+
+async deleteTarifaTrabajador(trabajadorId: string): Promise<void> {
+  const tarifa = await this.getTarifasByTrabajador(trabajadorId);
+  
+  if (!tarifa) {
+    throw new NotFoundException('Tarifas no encontradas');
+  }
+
+  // Soft delete
+  tarifa.activo = false;
+  await this.tarifasTrabajadorRepository.save(tarifa);
+}
+
 }

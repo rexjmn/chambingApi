@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+// src/modules/contracts/entities/estado-contrato.entity.ts
+import { 
+  Entity, 
+  PrimaryGeneratedColumn, 
+  Column, 
+  ManyToOne, 
+  JoinColumn, 
+  CreateDateColumn 
+} from 'typeorm';
 import { Contrato } from './contrato.entity';
 import { User } from '../../users/entities/user.entity';
 
@@ -11,10 +19,10 @@ export class EstadoContrato {
   @JoinColumn({ name: 'contrato_id' })
   contrato: Contrato;
 
-  @Column({ nullable: true })
-  estado_anterior: string;
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  estado_anterior: string | null;
 
-  @Column()
+  @Column({ type: 'varchar', length: 30 })
   estado_nuevo: string;
 
   @CreateDateColumn()
@@ -25,5 +33,5 @@ export class EstadoContrato {
   usuario: User;
 
   @Column({ type: 'text', nullable: true })
-  notas: string;
+  notas: string | null;
 }

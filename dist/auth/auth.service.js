@@ -68,8 +68,9 @@ let AuthService = AuthService_1 = class AuthService {
             };
         }
         catch (error) {
-            if (error instanceof common_1.UnauthorizedException) {
-                throw error;
+            if (error instanceof common_1.NotFoundException) {
+                await this.loginAttemptService.recordAttempt(loginDto.email, clientInfo.ip, clientInfo.userAgent, false);
+                throw new common_1.UnauthorizedException('Credenciales inválidas');
             }
             this.logger.error(`Error en el proceso de login: ${error.message}`, error.stack);
             throw new common_1.UnauthorizedException('Error durante el proceso de autenticación');

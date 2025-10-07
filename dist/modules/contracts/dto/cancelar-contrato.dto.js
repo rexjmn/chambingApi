@@ -9,34 +9,14 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateEstadoContratoDto = void 0;
+exports.CancelarContratoDto = void 0;
 const class_validator_1 = require("class-validator");
-class CreateEstadoContratoDto {
+class CancelarContratoDto {
 }
-exports.CreateEstadoContratoDto = CreateEstadoContratoDto;
-__decorate([
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsUUID)(),
-    __metadata("design:type", String)
-], CreateEstadoContratoDto.prototype, "contratoId", void 0);
+exports.CancelarContratoDto = CancelarContratoDto;
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateEstadoContratoDto.prototype, "estadoAnterior", void 0);
-__decorate([
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateEstadoContratoDto.prototype, "estadoNuevo", void 0);
-__decorate([
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsUUID)(),
-    __metadata("design:type", String)
-], CreateEstadoContratoDto.prototype, "usuarioId", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", String)
-], CreateEstadoContratoDto.prototype, "notas", void 0);
-//# sourceMappingURL=create-estado-contrato.dto.js.map
+], CancelarContratoDto.prototype, "motivo", void 0);
+//# sourceMappingURL=cancelar-contrato.dto.js.map

@@ -1,4 +1,3 @@
-// src/modules/aws/aws.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
@@ -12,20 +11,23 @@ export class AwsService {
   private readonly region: string;
 
   constructor(private configService: ConfigService) {
-    // Obtener y validar configuraciones
-    const region = this.configService.get<string>('AWS_REGION');
+    this.region = this.configService.get<string>('AWS_REGION') || 'eu-north-1';
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
     const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
     const bucketName = this.configService.get<string>('AWS_BUCKET_NAME');
 
-    // Validar que todas las configuraciones existan
-    if (!region || !accessKeyId || !secretAccessKey || !bucketName) {
+    console.log('🔧 AWS Configuration:');
+    console.log('- Region:', this.region);
+    console.log('- Bucket:', bucketName);
+    console.log('- Access Key:', accessKeyId ? 'SET' : 'MISSING');
+
+    if (!this.region || !accessKeyId || !secretAccessKey || !bucketName) {
       throw new Error('AWS credentials are missing');
     }
 
     this.bucketName = bucketName;
     this.s3Client = new S3Client({
-      region,
+      region: this.region,
       credentials: {
         accessKeyId,
         secretAccessKey,
@@ -39,15 +41,11 @@ export class AwsService {
     contentType: string
   ): Promise<{ uploadUrl: string; fileKey: string }> {
     try {
-      // Validar tipo de archivo
       if (!this.isValidFileType(contentType)) {
         throw new BadRequestException('Tipo de archivo no permitido');
       }
 
-      // Asegurar que tenemos una extensión válida
       const extension = fileExtension || this.getDefaultExtension(contentType);
-
-      // Generar nombre único para el archivo
       const fileKey = `${folder}/${uuidv4()}.${extension}`;
 
       const command = new PutObjectCommand({
@@ -83,12 +81,12 @@ export class AwsService {
     }
   }
 
-
   private isValidFileType(contentType: string): boolean {
     const allowedTypes = [
       'image/jpeg',
       'image/png',
       'image/webp',
+      'image/gif',
       'application/pdf'
     ];
     return allowedTypes.includes(contentType);
@@ -99,19 +97,22 @@ export class AwsService {
       'image/jpeg': 'jpg',
       'image/png': 'png',
       'image/webp': 'webp',
+      'image/gif': 'gif',
       'application/pdf': 'pdf'
     };
     return mimeToExt[contentType] || 'bin';
   }
 
-  async uploadFile(file: Express.Multer.File): Promise<{ fileUrl: string }> {
+  // ✨ MÉTODO ACTUALIZADO: Ahora acepta folder como parámetro opcional
+  async uploadFile(
+    file: Express.Multer.File, 
+    folder: string = 'profile-photos'
+  ): Promise<{ fileUrl: string }> {
     try {
-      // Validar el archivo
       if (!file) {
         throw new BadRequestException('No file provided');
       }
 
-      // Validar tipo de archivo
       if (!this.isValidFileType(file.mimetype)) {
         throw new BadRequestException('Invalid file type');
       }
@@ -119,24 +120,36 @@ export class AwsService {
       const fileExtension = file.originalname.split('.').pop() || 
                           this.getDefaultExtension(file.mimetype);
       
-      const fileKey = `test-uploads/${uuidv4()}.${fileExtension}`;
+      // Usar el folder proporcionado o el default
+      const fileKey = `${folder}/${uuidv4()}.${fileExtension}`;
 
       const command = new PutObjectCommand({
         Bucket: this.bucketName,
         Key: fileKey,
         Body: file.buffer,
-        ContentType: file.mimetype
+        ContentType: file.mimetype,
+        CacheControl: 'max-age=31536000',
+        Metadata: {
+          'uploaded-by': 'chambing-app',
+          'upload-date': new Date().toISOString()
+        }
       });
 
       await this.s3Client.send(command);
 
       const fileUrl = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${fileKey}`;
 
+      console.log('✅ File uploaded successfully:');
+      console.log('- Bucket:', this.bucketName);
+      console.log('- Region:', this.region);
+      console.log('- File Key:', fileKey);
+      console.log('- File URL:', fileUrl);
+
       return { fileUrl };
 
     } catch (error) {
-      console.error('Error uploading file:', error);
-      throw new BadRequestException('Error uploading file to S3');
+      console.error('❌ Error uploading file:', error);
+      throw new BadRequestException(`Error uploading file to S3: ${error.message}`);
     }
   }
 }

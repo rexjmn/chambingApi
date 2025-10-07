@@ -26,11 +26,11 @@ __decorate([
     __metadata("design:type", contrato_entity_1.Contrato)
 ], EstadoContrato.prototype, "contrato", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", String)
+    (0, typeorm_1.Column)({ type: 'varchar', length: 30, nullable: true }),
+    __metadata("design:type", Object)
 ], EstadoContrato.prototype, "estado_anterior", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ type: 'varchar', length: 30 }),
     __metadata("design:type", String)
 ], EstadoContrato.prototype, "estado_nuevo", void 0);
 __decorate([
@@ -44,7 +44,7 @@ __decorate([
 ], EstadoContrato.prototype, "usuario", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], EstadoContrato.prototype, "notas", void 0);
 exports.EstadoContrato = EstadoContrato = __decorate([
     (0, typeorm_1.Entity)('estados_contrato')

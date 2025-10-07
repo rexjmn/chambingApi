@@ -23,32 +23,6 @@ let UsersService = class UsersService {
         this.usersRepository = usersRepository;
         this.awsService = awsService;
     }
-    async updateProfilePhoto(userId, file) {
-        const user = await this.findOne(userId);
-        try {
-            if (user.foto_perfil) {
-                const oldKey = this.getKeyFromUrl(user.foto_perfil);
-                if (oldKey) {
-                    await this.awsService.deleteFile(oldKey);
-                }
-            }
-            const { fileUrl } = await this.awsService.uploadFile(file);
-            user.foto_perfil = fileUrl;
-            return await this.usersRepository.save(user);
-        }
-        catch (error) {
-            throw new common_1.BadRequestException('Error actualizando foto de perfil');
-        }
-    }
-    getKeyFromUrl(url) {
-        try {
-            const urlObj = new URL(url);
-            return urlObj.pathname.substring(1);
-        }
-        catch {
-            return null;
-        }
-    }
     async create(createUserDto) {
         const existingUser = await this.usersRepository.findOne({
             where: { email: createUserDto.email }
@@ -56,12 +30,11 @@ let UsersService = class UsersService {
         if (existingUser) {
             throw new common_1.ConflictException('El email ya está registrado');
         }
-        if (createUserDto.tipo_usuario === 'trabajador' && !createUserDto.foto_perfil) {
-            throw new common_1.BadRequestException('La foto de perfil es obligatoria para trabajadores');
-        }
+        const tipoUsuario = createUserDto.tipo_usuario || 'cliente';
         const user = this.usersRepository.create({
             ...createUserDto,
-            tipo_usuario: createUserDto.tipo_usuario || 'regular',
+            tipo_usuario: tipoUsuario,
+            verificado: false,
             activo: true
         });
         return await this.usersRepository.save(user);
@@ -69,7 +42,7 @@ let UsersService = class UsersService {
     async findOne(id) {
         const user = await this.usersRepository.findOne({
             where: { id },
-            relations: ['rolesAdministrativos', 'rolesAdministrativos.rol']
+            relations: ['rolesAdministrativos', 'rolesAdministrativos.rol', 'habilidades']
         });
         if (!user) {
             throw new common_1.NotFoundException('Usuario no encontrado');
@@ -85,6 +58,135 @@ let UsersService = class UsersService {
             throw new common_1.NotFoundException('Usuario no encontrado');
         }
         return user;
+    }
+    async findAll() {
+        return await this.usersRepository.find({
+            select: [
+                'id', 'nombre', 'apellido', 'email', 'telefono', 'dui',
+                'tipo_usuario', 'verificado', 'fecha_registro', 'foto_perfil',
+                'foto_portada', 'activo', 'departamento', 'municipio'
+            ],
+            order: { fecha_registro: 'DESC' }
+        });
+    }
+    async findAllWorkers(onlyVerified = false) {
+        const query = this.usersRepository
+            .createQueryBuilder('user')
+            .where('user.tipo_usuario = :tipo', { tipo: 'trabajador' })
+            .andWhere('user.activo = :activo', { activo: true })
+            .leftJoinAndSelect('user.habilidades', 'habilidades')
+            .orderBy('user.fecha_registro', 'DESC');
+        if (onlyVerified) {
+            query.andWhere('user.verificado = :verificado', { verificado: true });
+        }
+        return await query.getMany();
+    }
+    async getPublicProfile(userId) {
+        const user = await this.usersRepository.findOne({
+            where: { id: userId, activo: true },
+            relations: ['habilidades', 'tarifas'],
+            select: [
+                'id', 'nombre', 'apellido', 'email', 'telefono',
+                'departamento', 'municipio', 'biografia',
+                'foto_perfil', 'foto_portada', 'tipo_usuario',
+                'verificado', 'fecha_registro', 'titulo_profesional'
+            ]
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Usuario no encontrado');
+        }
+        const tarifasActivas = user.tarifas?.filter(t => t.activo) || [];
+        return {
+            status: 'success',
+            data: {
+                ...user,
+                tarifas: tarifasActivas.length > 0 ? tarifasActivas[0] : null
+            }
+        };
+    }
+    async findPendingWorkers() {
+        return await this.usersRepository.find({
+            where: {
+                tipo_usuario: 'trabajador',
+                verificado: false,
+                activo: true
+            },
+            order: { fecha_registro: 'ASC' }
+        });
+    }
+    async getVerifiedWorkers(filters) {
+        const query = this.usersRepository
+            .createQueryBuilder('user')
+            .leftJoinAndSelect('user.habilidades', 'habilidades')
+            .where('user.activo = :activo', { activo: true })
+            .orderBy('user.fecha_registro', 'DESC');
+        const tipoUsuario = filters.tipoUsuario || 'trabajador';
+        query.andWhere('user.tipo_usuario = :tipo', { tipo: tipoUsuario });
+        const verificado = filters.verificado !== undefined ? filters.verificado : true;
+        query.andWhere('user.verificado = :verificado', { verificado });
+        if (filters.departamento) {
+            query.andWhere('user.departamento = :departamento', {
+                departamento: filters.departamento
+            });
+        }
+        if (filters.search && filters.search.trim()) {
+            query.andWhere('(LOWER(user.nombre) LIKE LOWER(:search) OR ' +
+                'LOWER(user.apellido) LIKE LOWER(:search) OR ' +
+                'LOWER(user.titulo_profesional) LIKE LOWER(:search) OR ' +
+                'LOWER(user.biografia) LIKE LOWER(:search))', { search: `%${filters.search.trim()}%` });
+        }
+        if (filters.categoria) {
+            query.andWhere('EXISTS (' +
+                'SELECT 1 FROM usuario_habilidades uh ' +
+                'INNER JOIN habilidades h ON h.id = uh.habilidad_id ' +
+                'WHERE uh.usuario_id = user.id ' +
+                'AND (LOWER(h.nombre) LIKE LOWER(:categoria) OR LOWER(h.categoria) LIKE LOWER(:categoria))' +
+                ')', { categoria: `%${filters.categoria}%` });
+        }
+        const users = await query.getMany();
+        return users;
+    }
+    async verifyWorker(workerId, verified) {
+        const user = await this.findOne(workerId);
+        if (user.tipo_usuario !== 'trabajador') {
+            throw new common_1.BadRequestException('Solo los trabajadores pueden ser verificados');
+        }
+        user.verificado = verified;
+        return await this.usersRepository.save(user);
+    }
+    async changeUserType(userId, newType) {
+        const user = await this.findOne(userId);
+        if (newType === 'trabajador' && !user.foto_perfil) {
+            throw new common_1.BadRequestException('Debe tener foto de perfil para convertirse en trabajador');
+        }
+        user.tipo_usuario = newType;
+        if (newType === 'trabajador') {
+            user.verificado = false;
+        }
+        return await this.usersRepository.save(user);
+    }
+    async update(id, updateData) {
+        await this.usersRepository.update(id, updateData);
+        return this.findOne(id);
+    }
+    async updateProfile(userId, updateData) {
+        const user = await this.findOne(userId);
+        const allowedFields = [
+            'nombre', 'apellido', 'telefono', 'biografia',
+            'departamento', 'municipio', 'direccion'
+        ];
+        allowedFields.forEach(field => {
+            if (updateData[field] !== undefined) {
+                user[field] = updateData[field];
+            }
+        });
+        return await this.usersRepository.save(user);
+    }
+    async remove(id) {
+        const result = await this.usersRepository.delete(id);
+        if (result.affected === 0) {
+            throw new common_1.NotFoundException('Usuario no encontrado');
+        }
     }
     async updatePassword(id, hashedPassword) {
         const user = await this.usersRepository.findOne({ where: { id } });
@@ -103,8 +205,115 @@ let UsersService = class UsersService {
             throw new common_1.NotFoundException('Usuario no encontrado');
         }
         return user.rolesAdministrativos
-            .filter(ra => ra.activo)
-            .map(ra => ra.rol.nombre);
+            ?.filter(ra => ra.activo)
+            ?.map(ra => ra.rol.nombre) || [];
+    }
+    async updateProfilePhoto(userId, file) {
+        const user = await this.findOne(userId);
+        try {
+            if (user.foto_perfil) {
+                const oldKey = this.getKeyFromUrl(user.foto_perfil);
+                if (oldKey) {
+                    try {
+                        await this.awsService.deleteFile(oldKey);
+                    }
+                    catch (error) {
+                        console.warn(`No se pudo eliminar foto antigua: ${error.message}`);
+                    }
+                }
+            }
+            const { fileUrl } = await this.awsService.uploadFile(file);
+            user.foto_perfil = fileUrl;
+            user.tipo_foto_perfil = file.mimetype;
+            return await this.usersRepository.save(user);
+        }
+        catch (error) {
+            console.error('Error actualizando foto de perfil:', error);
+            throw new common_1.BadRequestException(`Error actualizando foto: ${error.message}`);
+        }
+    }
+    async updateCoverPhoto(userId, file) {
+        const user = await this.findOne(userId);
+        try {
+            if (user.foto_portada) {
+                const oldKey = this.getKeyFromUrl(user.foto_portada);
+                if (oldKey) {
+                    try {
+                        await this.awsService.deleteFile(oldKey);
+                    }
+                    catch (error) {
+                        console.warn(`No se pudo eliminar portada antigua: ${error.message}`);
+                    }
+                }
+            }
+            const { fileUrl } = await this.awsService.uploadFile(file, 'cover-photos');
+            user.foto_portada = fileUrl;
+            user.tipo_foto_portada = file.mimetype;
+            return await this.usersRepository.save(user);
+        }
+        catch (error) {
+            console.error('Error actualizando foto de portada:', error);
+            throw new common_1.BadRequestException(`Error actualizando portada: ${error.message}`);
+        }
+    }
+    async removeCoverPhoto(userId) {
+        const user = await this.findOne(userId);
+        try {
+            if (user.foto_portada) {
+                const oldKey = this.getKeyFromUrl(user.foto_portada);
+                if (oldKey) {
+                    try {
+                        await this.awsService.deleteFile(oldKey);
+                    }
+                    catch (error) {
+                        console.warn(`No se pudo eliminar portada: ${error.message}`);
+                    }
+                }
+            }
+            user.foto_portada = null;
+            user.tipo_foto_portada = null;
+            return await this.usersRepository.save(user);
+        }
+        catch (error) {
+            console.error('Error eliminando foto de portada:', error);
+            throw new common_1.BadRequestException(`Error eliminando portada: ${error.message}`);
+        }
+    }
+    getKeyFromUrl(url) {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.pathname.substring(1);
+        }
+        catch (error) {
+            console.warn(`URL inválida: ${url}`);
+            return null;
+        }
+    }
+    async updateUserSkills(userId, skillIds) {
+        const user = await this.usersRepository.findOne({
+            where: { id: userId },
+            relations: ['habilidades']
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Usuario no encontrado');
+        }
+        if (user.tipo_usuario !== 'trabajador') {
+            throw new common_1.BadRequestException('Solo los trabajadores pueden tener habilidades');
+        }
+        const currentSkills = user.habilidades || [];
+        await this.usersRepository
+            .createQueryBuilder()
+            .relation(user_entity_1.User, 'habilidades')
+            .of(user)
+            .remove(currentSkills);
+        if (skillIds.length > 0) {
+            await this.usersRepository
+                .createQueryBuilder()
+                .relation(user_entity_1.User, 'habilidades')
+                .of(user)
+                .add(skillIds);
+        }
+        return await this.findOne(userId);
     }
 };
 exports.UsersService = UsersService;

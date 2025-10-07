@@ -15,6 +15,23 @@ const user_entity_1 = require("../../users/entities/user.entity");
 const categoria_servicio_entity_1 = require("../../services/entities/categoria-servicio.entity");
 const estado_contrato_entity_1 = require("./estado-contrato.entity");
 let Contrato = class Contrato {
+    puedeSerActivado() {
+        return this.estado === 'pendiente_activacion';
+    }
+    puedeSerCompletado() {
+        return this.estado === 'activo';
+    }
+    puedeSerCancelado() {
+        return ['pendiente_activacion', 'activo'].includes(this.estado);
+    }
+    calcularMontoTrabajador() {
+        const comisionMonto = this.monto_total * (this.comision_plataforma / 100);
+        return this.monto_total - comisionMonto;
+    }
+    estaVencido() {
+        return new Date() > new Date(this.fecha_inicio_programada) &&
+            this.estado === 'pendiente_activacion';
+    }
 };
 exports.Contrato = Contrato;
 __decorate([
@@ -22,24 +39,32 @@ __decorate([
     __metadata("design:type", String)
 ], Contrato.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { eager: true }),
     (0, typeorm_1.JoinColumn)({ name: 'empleador_id' }),
     __metadata("design:type", user_entity_1.User)
 ], Contrato.prototype, "empleador", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { eager: true }),
     (0, typeorm_1.JoinColumn)({ name: 'trabajador_id' }),
     __metadata("design:type", user_entity_1.User)
 ], Contrato.prototype, "trabajador", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => categoria_servicio_entity_1.CategoriaServicio),
+    (0, typeorm_1.ManyToOne)(() => categoria_servicio_entity_1.CategoriaServicio, { eager: true }),
     (0, typeorm_1.JoinColumn)({ name: 'categoria_id' }),
     __metadata("design:type", categoria_servicio_entity_1.CategoriaServicio)
 ], Contrato.prototype, "categoria", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ unique: true }),
+    (0, typeorm_1.Column)({ unique: true, length: 50 }),
     __metadata("design:type", String)
 ], Contrato.prototype, "codigo_contrato", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 6 }),
+    __metadata("design:type", String)
+], Contrato.prototype, "pin_activacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], Contrato.prototype, "codigo_qr_url", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
@@ -47,13 +72,33 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ type: 'timestamp' }),
     __metadata("design:type", Date)
-], Contrato.prototype, "fecha_inicio", void 0);
+], Contrato.prototype, "fecha_inicio_programada", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
     __metadata("design:type", Date)
-], Contrato.prototype, "fecha_fin", void 0);
+], Contrato.prototype, "fecha_fin_programada", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ default: 'pendiente' }),
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], Contrato.prototype, "fecha_activacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], Contrato.prototype, "fecha_completado", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], Contrato.prototype, "fecha_cierre", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)(),
+    __metadata("design:type", Date)
+], Contrato.prototype, "fecha_actualizacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'varchar',
+        length: 30,
+        default: 'pendiente_activacion'
+    }),
     __metadata("design:type", String)
 ], Contrato.prototype, "estado", void 0);
 __decorate([
@@ -67,13 +112,51 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2 }),
     __metadata("design:type", Number)
-], Contrato.prototype, "monto", void 0);
+], Contrato.prototype, "monto_total", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true }),
+    (0, typeorm_1.Column)({
+        type: 'varchar',
+        length: 20,
+        default: 'pendiente'
+    }),
     __metadata("design:type", String)
-], Contrato.prototype, "codigo_qr_url", void 0);
+], Contrato.prototype, "estado_pago", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => estado_contrato_entity_1.EstadoContrato, estado => estado.contrato),
+    (0, typeorm_1.Column)({
+        type: 'varchar',
+        length: 20,
+        default: 'efectivo'
+    }),
+    __metadata("design:type", String)
+], Contrato.prototype, "metodo_pago", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true }),
+    __metadata("design:type", String)
+], Contrato.prototype, "stripe_payment_intent_id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 10 }),
+    __metadata("design:type", Number)
+], Contrato.prototype, "comision_plataforma", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2 }),
+    __metadata("design:type", Number)
+], Contrato.prototype, "monto_trabajador", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 20, nullable: true }),
+    __metadata("design:type", String)
+], Contrato.prototype, "activado_por", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 20, nullable: true }),
+    __metadata("design:type", String)
+], Contrato.prototype, "metodo_activacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", Object)
+], Contrato.prototype, "ip_activacion", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => estado_contrato_entity_1.EstadoContrato, estado => estado.contrato, {
+        cascade: true
+    }),
     __metadata("design:type", Array)
 ], Contrato.prototype, "estados", void 0);
 exports.Contrato = Contrato = __decorate([

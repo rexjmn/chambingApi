@@ -18,16 +18,20 @@ const uuid_1 = require("uuid");
 let AwsService = class AwsService {
     constructor(configService) {
         this.configService = configService;
-        const region = this.configService.get('AWS_REGION');
+        this.region = this.configService.get('AWS_REGION') || 'eu-north-1';
         const accessKeyId = this.configService.get('AWS_ACCESS_KEY_ID');
         const secretAccessKey = this.configService.get('AWS_SECRET_ACCESS_KEY');
         const bucketName = this.configService.get('AWS_BUCKET_NAME');
-        if (!region || !accessKeyId || !secretAccessKey || !bucketName) {
+        console.log('🔧 AWS Configuration:');
+        console.log('- Region:', this.region);
+        console.log('- Bucket:', bucketName);
+        console.log('- Access Key:', accessKeyId ? 'SET' : 'MISSING');
+        if (!this.region || !accessKeyId || !secretAccessKey || !bucketName) {
             throw new Error('AWS credentials are missing');
         }
         this.bucketName = bucketName;
         this.s3Client = new client_s3_1.S3Client({
-            region,
+            region: this.region,
             credentials: {
                 accessKeyId,
                 secretAccessKey,
@@ -75,6 +79,7 @@ let AwsService = class AwsService {
             'image/jpeg',
             'image/png',
             'image/webp',
+            'image/gif',
             'application/pdf'
         ];
         return allowedTypes.includes(contentType);
@@ -84,11 +89,12 @@ let AwsService = class AwsService {
             'image/jpeg': 'jpg',
             'image/png': 'png',
             'image/webp': 'webp',
+            'image/gif': 'gif',
             'application/pdf': 'pdf'
         };
         return mimeToExt[contentType] || 'bin';
     }
-    async uploadFile(file) {
+    async uploadFile(file, folder = 'profile-photos') {
         try {
             if (!file) {
                 throw new common_1.BadRequestException('No file provided');
@@ -98,20 +104,30 @@ let AwsService = class AwsService {
             }
             const fileExtension = file.originalname.split('.').pop() ||
                 this.getDefaultExtension(file.mimetype);
-            const fileKey = `test-uploads/${(0, uuid_1.v4)()}.${fileExtension}`;
+            const fileKey = `${folder}/${(0, uuid_1.v4)()}.${fileExtension}`;
             const command = new client_s3_1.PutObjectCommand({
                 Bucket: this.bucketName,
                 Key: fileKey,
                 Body: file.buffer,
-                ContentType: file.mimetype
+                ContentType: file.mimetype,
+                CacheControl: 'max-age=31536000',
+                Metadata: {
+                    'uploaded-by': 'chambing-app',
+                    'upload-date': new Date().toISOString()
+                }
             });
             await this.s3Client.send(command);
             const fileUrl = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${fileKey}`;
+            console.log('✅ File uploaded successfully:');
+            console.log('- Bucket:', this.bucketName);
+            console.log('- Region:', this.region);
+            console.log('- File Key:', fileKey);
+            console.log('- File URL:', fileUrl);
             return { fileUrl };
         }
         catch (error) {
-            console.error('Error uploading file:', error);
-            throw new common_1.BadRequestException('Error uploading file to S3');
+            console.error('❌ Error uploading file:', error);
+            throw new common_1.BadRequestException(`Error uploading file to S3: ${error.message}`);
         }
     }
 };

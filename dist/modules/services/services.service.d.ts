@@ -2,14 +2,19 @@ import { Repository } from 'typeorm';
 import { CategoriaServicio } from './entities/categoria-servicio.entity';
 import { TarifaCategoria } from './entities/tarifa-categoria.entity';
 import { TrabajadorCategoria } from './entities/trabajador-categoria.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { CreateTarifaDto } from './dto/create-tarifa.dto';
 import { CreateTrabajadorCategoriaDto } from './dto/create-trabajador-categoria.dto';
+import { TarifaTrabajador } from './entities/tarifa-trabajador.entity';
+import { CreateTarifaTrabajadorDto, UpdateTarifaTrabajadorDto } from './dto/create-tarifa-trabajador.dto';
 export declare class ServicesService {
     private categoriasRepository;
     private tarifasRepository;
     private trabajadorCategoriaRepository;
-    constructor(categoriasRepository: Repository<CategoriaServicio>, tarifasRepository: Repository<TarifaCategoria>, trabajadorCategoriaRepository: Repository<TrabajadorCategoria>);
+    private tarifasTrabajadorRepository;
+    private usersRepository;
+    constructor(categoriasRepository: Repository<CategoriaServicio>, tarifasRepository: Repository<TarifaCategoria>, trabajadorCategoriaRepository: Repository<TrabajadorCategoria>, tarifasTrabajadorRepository: Repository<TarifaTrabajador>, usersRepository: Repository<User>);
     createCategoria(createCategoriaDto: CreateCategoriaDto): Promise<CategoriaServicio>;
     createTarifa(createTarifaDto: CreateTarifaDto): Promise<TarifaCategoria>;
     assignTrabajadorToCategoria(createTrabajadorCategoriaDto: CreateTrabajadorCategoriaDto): Promise<TrabajadorCategoria>;
@@ -17,4 +22,9 @@ export declare class ServicesService {
     findCategoriaById(id: string): Promise<CategoriaServicio>;
     getTrabajadoresByCategoria(categoriaId: string): Promise<TrabajadorCategoria[]>;
     updateCategoria(id: string, updateCategoriaDto: Partial<CreateCategoriaDto>): Promise<CategoriaServicio>;
+    deleteCategoria(id: string): Promise<void>;
+    createTarifaTrabajador(dto: CreateTarifaTrabajadorDto): Promise<TarifaTrabajador>;
+    updateTarifaTrabajador(trabajadorId: string, dto: UpdateTarifaTrabajadorDto): Promise<TarifaTrabajador>;
+    getTarifasByTrabajador(trabajadorId: string): Promise<TarifaTrabajador | null>;
+    deleteTarifaTrabajador(trabajadorId: string): Promise<void>;
 }

@@ -12,63 +12,74 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateUserDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateUserDto {
-    constructor() {
-        this.tipo_usuario = 'regular';
-    }
 }
 exports.CreateUserDto = CreateUserDto;
 __decorate([
-    (0, class_validator_1.IsEmail)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsEmail)({}, { message: 'Email inválido' }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'El email es obligatorio' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "email", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsNotEmpty)({ message: 'La contraseña es obligatoria' }),
+    (0, class_validator_1.MinLength)(6, { message: 'La contraseña debe tener al menos 6 caracteres' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "password", void 0);
 __decorate([
+    (0, class_validator_1.IsNotEmpty)({ message: 'El nombre es obligatorio' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Length)(2, 100, { message: 'El nombre debe tener entre 2 y 100 caracteres' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "nombre", void 0);
 __decorate([
+    (0, class_validator_1.IsNotEmpty)({ message: 'El apellido es obligatorio' }),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Length)(2, 100, { message: 'El apellido debe tener entre 2 y 100 caracteres' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "apellido", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(8, 20),
+    (0, class_validator_1.Matches)(/^[0-9-]+$/, { message: 'Teléfono debe contener solo números y guiones' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "telefono", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.Matches)(/^\d{8}-\d$/, {
-        message: 'El DUI debe tener el formato: 12345678-9'
-    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "departamento", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "municipio", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "direccion", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "biografia", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(9, 10),
+    (0, class_validator_1.Matches)(/^[0-9-]+$/, { message: 'DUI debe contener solo números y guiones' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "dui", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Object)
-], CreateUserDto.prototype, "direccion", void 0);
-__decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", String)
-], CreateUserDto.prototype, "tipo_usuario", void 0);
-__decorate([
-    (0, class_validator_1.ValidateIf)(o => o.tipo_usuario === 'trabajador'),
-    (0, class_validator_1.IsNotEmpty)({ message: 'La foto de perfil es obligatoria para trabajadores' }),
-    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "foto_perfil", void 0);
 __decorate([
-    (0, class_validator_1.ValidateIf)(o => o.tipo_usuario === 'trabajador'),
-    (0, class_validator_1.IsNotEmpty)({ message: 'El tipo de foto de perfil es obligatorio para trabajadores' }),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(['cliente', 'trabajador'], {
+        message: 'tipo_usuario debe ser "cliente" o "trabajador"'
+    }),
     __metadata("design:type", String)
-], CreateUserDto.prototype, "tipo_foto_perfil", void 0);
+], CreateUserDto.prototype, "tipo_usuario", void 0);
 //# sourceMappingURL=create-user.dto.js.map

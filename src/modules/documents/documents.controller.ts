@@ -40,6 +40,7 @@ import {
     }
   
     @Get()
+    @UseGuards(JwtAuthGuard, RolesGuard)
     @RequireRoles('admin', 'super_admin', 'verificador')
     findAll(
       @Query('usuarioId') usuarioId?: string,

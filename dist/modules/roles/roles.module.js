@@ -10,6 +10,8 @@ exports.RolesModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const role_entity_1 = require("./entities/role.entity");
+const roles_controller_1 = require("./roles.controller");
+const roles_service_1 = require("./roles.service");
 const rol_administrativo_entity_1 = require("./entities/rol-administrativo.entity");
 let RolesModule = class RolesModule {
 };
@@ -17,7 +19,9 @@ exports.RolesModule = RolesModule;
 exports.RolesModule = RolesModule = __decorate([
     (0, common_1.Module)({
         imports: [typeorm_1.TypeOrmModule.forFeature([role_entity_1.Role, rol_administrativo_entity_1.RolAdministrativo])],
-        exports: [typeorm_1.TypeOrmModule]
+        controllers: [roles_controller_1.RolesController],
+        providers: [roles_service_1.RolesService],
+        exports: [roles_service_1.RolesService, typeorm_1.TypeOrmModule]
     })
 ], RolesModule);
 //# sourceMappingURL=roles.module.js.map
