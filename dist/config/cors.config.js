@@ -11,7 +11,8 @@ exports.corsConfig = {
     },
     production: {
         origins: [
-            'https://tu-dominio.com'
+            'https://chambing.pro',
+            'https://www.chambing.pro'
         ]
     }
 };

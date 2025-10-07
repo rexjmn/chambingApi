@@ -4,7 +4,12 @@ exports.corsConfig = void 0;
 exports.getCorsOrigins = getCorsOrigins;
 const config_1 = require("@nestjs/config");
 exports.default = (0, config_1.registerAs)('database', () => {
+    console.log('🔍 DATABASE CONFIG DEBUG:');
+    console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET ✓' : 'NOT SET ✗');
+    console.log('DB_HOST:', process.env.DB_HOST || 'NOT SET');
+    console.log('NODE_ENV:', process.env.NODE_ENV);
     if (process.env.DATABASE_URL) {
+        console.log('✅ Using DATABASE_URL');
         return {
             type: 'postgres',
             url: process.env.DATABASE_URL,
@@ -18,6 +23,7 @@ exports.default = (0, config_1.registerAs)('database', () => {
             },
         };
     }
+    console.log('⚠️ Using individual DB variables (fallback)');
     return {
         type: 'postgres',
         host: process.env.DB_HOST || 'localhost',

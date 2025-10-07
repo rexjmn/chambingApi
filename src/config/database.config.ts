@@ -2,8 +2,15 @@ import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 export default registerAs('database', (): TypeOrmModuleOptions => {
+  // DEBUGGING - Ver qué variables tenemos
+  console.log('🔍 DATABASE CONFIG DEBUG:');
+  console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET ✓' : 'NOT SET ✗');
+  console.log('DB_HOST:', process.env.DB_HOST || 'NOT SET');
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  
   // Si existe DATABASE_URL, úsala (producción)
   if (process.env.DATABASE_URL) {
+    console.log('✅ Using DATABASE_URL');
     return {
       type: 'postgres',
       url: process.env.DATABASE_URL,
@@ -19,6 +26,7 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
   }
   
   // Si no, usa variables individuales (desarrollo local)
+  console.log('⚠️ Using individual DB variables (fallback)');
   return {
     type: 'postgres',
     host: process.env.DB_HOST || 'localhost',
