@@ -1,7 +1,5 @@
 node_modules
 echo ".env" >> .gitignore
 echo ".snapshots/" >> .gitignore
-.env
-.snapshots/
-.env
+#.env
 .snapshots/
