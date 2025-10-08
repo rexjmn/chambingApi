@@ -1,8 +1,18 @@
 import { Controller, Get } from '@nestjs/common';
 
-@Controller()
+@Controller() // Sin prefijo - responde en /
 export class AppController {
-  @Get()
+  
+  @Get() // Esto responde en /
+  getRoot() {
+    return {
+      status: 'ok',
+      message: 'API is running',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Get('api') // Esto responde en /api
   getHello() {
     return {
       status: 'success',

@@ -21,7 +21,9 @@ async function bootstrap() {
     forbidNonWhitelisted: true,
   }));
 
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+  exclude: ['/'], // Excluye la ruta raíz
+});
 
   const config = new DocumentBuilder()
     .setTitle('Services API')
