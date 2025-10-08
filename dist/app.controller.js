@@ -12,7 +12,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
 let AppController = class AppController {
+    constructor() {
+        this.startTime = Date.now();
+    }
     getHello() {
+        const uptime = Date.now() - this.startTime;
+        if (uptime < 3000) {
+            throw new Error('Starting up...');
+        }
         return {
             status: 'success',
             message: 'Welcome to Services API',

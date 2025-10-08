@@ -1,4 +1,5 @@
 export declare class AppController {
+    private startTime;
     getHello(): {
         status: string;
         message: string;
