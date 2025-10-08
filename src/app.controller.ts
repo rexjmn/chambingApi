@@ -1,19 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
 
-@Controller() // Sin prefijo - responde en /
+@Controller()
 export class AppController {
+  private startTime = Date.now();
   
-  @Get() // Esto responde en /
-  getRoot() {
-    return {
-      status: 'ok',
-      message: 'API is running',
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  @Get('api') // Esto responde en /api
+  @Get()
   getHello() {
+    // Espera 3 segundos después del inicio antes de responder OK
+    const uptime = Date.now() - this.startTime;
+    if (uptime < 3000) {
+      throw new Error('Starting up...');
+    }
+    
     return {
       status: 'success',
       message: 'Welcome to Services API',
